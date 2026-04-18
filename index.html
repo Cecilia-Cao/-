@@ -63,6 +63,8 @@
     .tag.active { background: var(--sage); color: white; }
     .hidden { display: none !important; }
     .admin-badge { background: var(--dusty-rose); color: white; padding: 0.3rem 1rem; border-radius: 40px; }
+    .auth-tab { flex: 1; text-align: center; padding: 0.8rem; border-radius: 40px; cursor: pointer; background: #e2d4d0; }
+    .auth-tab.active { background: var(--deep-teal); color: white; }
   </style>
 </head>
 <body>
@@ -72,21 +74,26 @@
   <div class="container" style="max-width:450px; margin-top:80px;">
     <div class="card">
       <h2 style="font-weight:300; margin-bottom:1.5rem; text-align:center;">📖 句·集 · 邀请制</h2>
-      <div id="authModeSwitch" style="display:flex; gap:1rem; margin-bottom:1.5rem;">
-        <button class="btn" id="showLoginBtn" style="flex:1;">登录</button>
-        <button class="btn-outline btn" id="showSignupBtn" style="flex:1;">注册</button>
+      
+      <div style="display:flex; gap:0.5rem; margin-bottom:1.5rem;">
+        <div id="loginTab" class="auth-tab active">登录</div>
+        <div id="signupTab" class="auth-tab">注册</div>
       </div>
+
       <div id="loginForm">
         <input type="email" id="loginEmail" placeholder="邮箱" style="margin-bottom:1rem;">
         <input type="password" id="loginPassword" placeholder="密码" style="margin-bottom:1.5rem;">
         <button class="btn" id="loginBtn" style="width:100%;">登录</button>
       </div>
+
       <div id="signupForm" class="hidden">
         <input type="email" id="signupEmail" placeholder="邮箱" style="margin-bottom:1rem;">
-        <input type="password" id="signupPassword" placeholder="密码" style="margin-bottom:1rem;">
+        <input type="password" id="signupPassword" placeholder="密码（至少6位）" style="margin-bottom:1rem;">
         <input type="text" id="inviteCodeInput" placeholder="邀请码（必填）" style="margin-bottom:1.5rem;">
         <button class="btn" id="signupBtn" style="width:100%;">注册</button>
+        <p style="margin-top:0.8rem; font-size:0.8rem; color:#9a9490;">💡 使用 ADMIN2026 注册自动成为管理员</p>
       </div>
+
       <p style="margin-top:1rem; font-size:0.85rem; color:#9a9490; text-align:center;">注册需要有效的邀请码</p>
     </div>
   </div>
@@ -106,7 +113,6 @@
   </nav>
 
   <div class="container" id="discoverView">
-    <!-- 搜索栏 -->
     <div style="margin-bottom:2rem;">
       <div style="display:flex; gap:1rem;">
         <input type="text" id="searchInput" placeholder="搜索句子、作者... 或让AI帮你找" style="flex:1;">
@@ -124,7 +130,6 @@
       </div>
     </div>
 
-    <!-- 发布句子卡片 -->
     <div class="card">
       <h3 style="margin-bottom:1rem;">📝 分享一句触动你的话</h3>
       <textarea id="newContent" placeholder="句子内容" rows="2" style="margin-bottom:1rem;"></textarea>
@@ -144,19 +149,16 @@
       </div>
     </div>
 
-    <!-- 句子流 -->
     <h3 style="margin:2rem 0 1rem;">✨ 今日拾句</h3>
     <div class="grid-2col" id="sentencesGrid"></div>
   </div>
 
-  <!-- 论坛视图（简化版） -->
   <div class="container hidden" id="forumsView">
     <h2>📌 文青聚落</h2>
     <button class="btn" id="createForumBtn" style="margin:1rem 0;">+ 创建新小组</button>
     <div class="grid-2col" id="forumsGrid"></div>
   </div>
 
-  <!-- 管理员面板 -->
   <div class="container hidden" id="adminView">
     <h2>🛡️ 管理员控制台</h2>
     <div style="display:flex; gap:1rem; margin:2rem 0;">
@@ -178,16 +180,17 @@
   const SUPABASE_URL = 'https://mspkbdzfbdeygfhnasky.supabase.co';
   const SUPABASE_ANON_KEY = 'sb_publishable_iOH2Efc99WKQSzZt05BicA_8RRLDHgQ';
   // =================================================================
+  
+  // 内置超级邀请码：用这个码注册自动成为管理员
+  const SUPER_INVITE_CODE = 'ADMIN2026';
 
   const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  // 全局状态
   let currentUser = null;
   let isAdmin = false;
   let currentCategory = 'all';
   let currentRegion = null;
 
-  // DOM 元素
   const authPanel = document.getElementById('authPanel');
   const appPanel = document.getElementById('appPanel');
   const discoverView = document.getElementById('discoverView');
@@ -195,7 +198,6 @@
   const adminView = document.getElementById('adminView');
   const adminEntry = document.getElementById('adminEntry');
 
-  // 初始化
   async function init() {
     const { data: { session } } = await supabase.auth.getSession();
     if (session) {
@@ -223,21 +225,26 @@
     loadForums();
   }
 
-  function showAuth() {
-    authPanel.classList.remove('hidden');
-    appPanel.classList.add('hidden');
-  }
-
-  // 事件监听
   function setupEventListeners() {
-    document.getElementById('showSignupBtn').addEventListener('click', () => {
-      document.getElementById('loginForm').classList.add('hidden');
-      document.getElementById('signupForm').classList.remove('hidden');
+    const loginTab = document.getElementById('loginTab');
+    const signupTab = document.getElementById('signupTab');
+    const loginForm = document.getElementById('loginForm');
+    const signupForm = document.getElementById('signupForm');
+
+    loginTab.addEventListener('click', () => {
+      loginTab.classList.add('active');
+      signupTab.classList.remove('active');
+      loginForm.classList.remove('hidden');
+      signupForm.classList.add('hidden');
     });
-    document.getElementById('showLoginBtn').addEventListener('click', () => {
-      document.getElementById('signupForm').classList.add('hidden');
-      document.getElementById('loginForm').classList.remove('hidden');
+
+    signupTab.addEventListener('click', () => {
+      signupTab.classList.add('active');
+      loginTab.classList.remove('active');
+      signupForm.classList.remove('hidden');
+      loginForm.classList.add('hidden');
     });
+
     document.getElementById('loginBtn').addEventListener('click', login);
     document.getElementById('signupBtn').addEventListener('click', signup);
     document.getElementById('signOutBtn').addEventListener('click', async () => {
@@ -247,7 +254,6 @@
     document.getElementById('publishBtn').addEventListener('click', publishSentence);
     document.getElementById('aiSearchBtn').addEventListener('click', () => alert('AI搜索模拟：可对接DeepSeek等API'));
     
-    // 分类筛选
     document.querySelectorAll('.tag').forEach(t => {
       t.addEventListener('click', function() {
         document.querySelectorAll('.tag').forEach(tt => tt.classList.remove('active'));
@@ -260,7 +266,6 @@
       });
     });
 
-    // 导航
     document.getElementById('navDiscover').addEventListener('click', () => {
       discoverView.classList.remove('hidden');
       forumsView.classList.add('hidden');
@@ -294,36 +299,63 @@
   }
 
   async function login() {
-    const email = document.getElementById('loginEmail').value;
+    const email = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPassword').value;
+    if (!email || !password) return alert('请填写邮箱和密码');
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) alert(error.message);
+    if (error) alert('登录失败：' + error.message);
     else location.reload();
   }
 
   async function signup() {
-    const email = document.getElementById('signupEmail').value;
+    const email = document.getElementById('signupEmail').value.trim();
     const password = document.getElementById('signupPassword').value;
     const code = document.getElementById('inviteCodeInput').value.trim();
+    
+    if (!email || !password) return alert('请填写邮箱和密码');
+    if (password.length < 6) return alert('密码至少6位');
     if (!code) return alert('邀请码不能为空');
     
-    // 验证邀请码
-    const { data: validCode, error: codeError } = await supabase
-      .from('invitation_codes')
-      .select('*')
-      .eq('code', code)
-      .is('used_by', null)
-      .gte('expires_at', new Date().toISOString())
-      .single();
+    // 检查是否是超级邀请码
+    const isSuperCode = (code === SUPER_INVITE_CODE);
     
-    if (codeError || !validCode) return alert('邀请码无效或已过期');
+    let validCode;
+    if (!isSuperCode) {
+      // 普通邀请码需要验证数据库
+      const { data, error: codeError } = await supabase
+        .from('invitation_codes')
+        .select('*')
+        .eq('code', code)
+        .is('used_by', null)
+        .gte('expires_at', new Date().toISOString())
+        .single();
+      
+      if (codeError || !data) return alert('邀请码无效或已过期');
+      validCode = data;
+    }
     
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error) return alert(error.message);
+    // 注册用户，如果是超级邀请码，在 metadata 中标记为管理员
+    const userMetadata = isSuperCode ? { is_admin: 'true' } : {};
     
-    // 标记邀请码已使用
-    await supabase.from('invitation_codes').update({ used_by: data.user.id, used_at: new Date() }).eq('code', code);
-    alert('注册成功！请查收验证邮件。');
+    const { data, error } = await supabase.auth.signUp({ 
+      email, 
+      password,
+      options: {
+        data: userMetadata
+      }
+    });
+    
+    if (error) return alert('注册失败：' + error.message);
+    
+    // 标记邀请码已使用（普通邀请码）
+    if (!isSuperCode) {
+      await supabase.from('invitation_codes').update({ used_by: data.user.id, used_at: new Date() }).eq('code', code);
+    }
+    
+    const msg = isSuperCode 
+      ? '🎉 管理员账号注册成功！请查收验证邮件并点击链接激活。' 
+      : '注册成功！请查收验证邮件并点击链接激活账号。';
+    alert(msg);
     location.reload();
   }
 
@@ -338,11 +370,11 @@
     const { error } = await supabase.from('sentences').insert([{
       content, author, source, category, region,
       user_id: currentUser.id,
-      status: 'pending'
+      status: isAdmin ? 'approved' : 'pending'  // 管理员发布的直接通过
     }]);
     if (error) alert(error.message);
     else {
-      alert('发布成功，等待管理员审核');
+      alert(isAdmin ? '发布成功' : '发布成功，等待管理员审核');
       document.getElementById('newContent').value = '';
       loadSentences();
     }
@@ -356,7 +388,7 @@
     const { data } = await query.limit(50);
     const grid = document.getElementById('sentencesGrid');
     if (!data?.length) {
-      grid.innerHTML = '<p>暂无句子</p>';
+      grid.innerHTML = '<p style="padding:2rem; text-align:center; color:#9a9490;">暂无句子，来分享第一条吧～</p>';
       return;
     }
     grid.innerHTML = data.map(s => `
@@ -374,11 +406,15 @@
   async function loadForums() {
     const { data } = await supabase.from('forums').select('*');
     const grid = document.getElementById('forumsGrid');
+    if (!data?.length) {
+      grid.innerHTML = '<p>暂无小组</p>';
+      return;
+    }
     grid.innerHTML = data.map(f => `
       <div class="card">
         <h3>${f.icon || '📌'} ${escapeHtml(f.name)}</h3>
         <p>${escapeHtml(f.description || '')}</p>
-        <small>${f.member_count} 成员</small>
+        <small>${f.member_count || 1} 成员</small>
       </div>
     `).join('');
   }
@@ -387,8 +423,9 @@
     const name = prompt('版块名称');
     if (!name) return;
     const desc = prompt('简介（可选）');
-    await supabase.from('forums').insert([{ name, description: desc, created_by: currentUser.id }]);
-    loadForums();
+    const { error } = await supabase.from('forums').insert([{ name, description: desc, created_by: currentUser.id }]);
+    if (error) alert(error.message);
+    else loadForums();
   }
 
   async function generateInviteCode() {
@@ -401,6 +438,10 @@
   async function loadInviteCodes() {
     const { data } = await supabase.from('invitation_codes').select('*').order('created_at', { ascending: false });
     const container = document.getElementById('inviteCodeList');
+    if (!data?.length) {
+      container.innerHTML = '<p>暂无邀请码</p>';
+      return;
+    }
     container.innerHTML = data.map(c => `
       <div style="background:white; padding:1rem; border-radius:20px; margin-bottom:0.5rem;">
         <code style="font-size:1.2rem;">${c.code}</code>
@@ -413,12 +454,16 @@
   async function loadPendingSentences() {
     const { data } = await supabase.from('sentences').select('*').eq('status', 'pending');
     const container = document.getElementById('pendingSentencesList');
+    if (!data?.length) {
+      container.innerHTML = '<p>暂无待审核内容</p>';
+      return;
+    }
     container.innerHTML = data.map(s => `
       <div class="card">
         <p><strong>${escapeHtml(s.content)}</strong></p>
         <p>${s.author || ''} ${s.source || ''}</p>
-        <button onclick="reviewSentence(${s.id}, 'approved')">通过</button>
-        <button onclick="reviewSentence(${s.id}, 'rejected')">拒绝</button>
+        <button class="btn" onclick="reviewSentence(${s.id}, 'approved')">通过</button>
+        <button class="btn-outline btn" onclick="reviewSentence(${s.id}, 'rejected')">拒绝</button>
       </div>
     `).join('');
   }
