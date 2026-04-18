@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+  <title>句·集 | 文艺栖息地</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.6.0/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background-color: #f7f5f0;
+      font-family: "LXGW WenKai", "Noto Serif SC", serif;
+      color: #3e3a39;
+      line-height: 1.6;
+      padding-bottom: 40px;
+    }
+    :root {
+      --sage: #b5c1b4;
+      --dusty-rose: #c4a5a1;
+      --warm-grey: #d1c7c0;
+      --deep-teal: #4a6b6f;
+      --paper: #fbf9f6;
+    }
+    nav {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 1rem 2rem; background: rgba(251,249,246,0.8);
+      backdrop-filter: blur(8px); border-bottom: 1px solid var(--warm-grey);
+      position: sticky; top: 0; z-index: 10;
+    }
+    .logo { font-size: 1.8rem; font-weight: 400; color: var(--deep-teal); }
+    .container { max-width: 1300px; margin: 0 auto; padding: 2rem 1.5rem; }
+    .card {
+      background: var(--paper); border-radius: 24px; padding: 1.8rem;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.03); border: 1px solid rgba(200,190,180,0.2);
+      transition: all 0.25s ease; margin-bottom: 1.5rem;
+    }
+    .card:hover { transform: translateY(-3px); box-shadow: 0 16px 28px -8px rgba(60,50,45,0.08); }
+    .btn {
+      background: var(--deep-teal); color: white; border: none;
+      padding: 0.7rem 1.8rem; border-radius: 40px; font-size: 1rem;
+      cursor: pointer; font-family: inherit; transition: 0.2s;
+    }
+    .btn:hover { background: #3a585c; }
+    .btn-outline {
+      background: transparent; border: 1px solid var(--deep-teal); color: var(--deep-teal);
+    }
+    input, textarea, select {
+      width: 100%; padding: 0.9rem 1.2rem; border-radius: 40px;
+      border: 1px solid var(--warm-grey); background: white;
+      font-family: inherit; font-size: 1rem; outline: none;
+    }
+    textarea { border-radius: 24px; resize: vertical; }
+    .grid-2col {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 2rem;
+    }
+    .tag {
+      background: #e2d4d0; padding: 0.4rem 1.2rem; border-radius: 40px;
+      font-size: 0.9rem; cursor: pointer; transition: all 0.1s;
+    }
+    .tag.active { background: var(--sage); color: white; }
+    .hidden { display: none !important; }
+    .admin-badge { background: var(--dusty-rose); color: white; padding: 0.3rem 1rem; border-radius: 40px; }
+  </style>
+</head>
+<body>
+
+<!-- 登录/注册面板 -->
+<div id="authPanel">
+  <div class="container" style="max-width:450px; margin-top:80px;">
+    <div class="card">
+      <h2 style="font-weight:300; margin-bottom:1.5rem; text-align:center;">📖 句·集 · 邀请制</h2>
+      <div id="authModeSwitch" style="display:flex; gap:1rem; margin-bottom:1.5rem;">
+        <button class="btn" id="showLoginBtn" style="flex:1;">登录</button>
+        <button class="btn-outline btn" id="showSignupBtn" style="flex:1;">注册</button>
+      </div>
+      <div id="loginForm">
+        <input type="email" id="loginEmail" placeholder="邮箱" style="margin-bottom:1rem;">
+        <input type="password" id="loginPassword" placeholder="密码" style="margin-bottom:1.5rem;">
+        <button class="btn" id="loginBtn" style="width:100%;">登录</button>
+      </div>
+      <div id="signupForm" class="hidden">
+        <input type="email" id="signupEmail" placeholder="邮箱" style="margin-bottom:1rem;">
+        <input type="password" id="signupPassword" placeholder="密码" style="margin-bottom:1rem;">
+        <input type="text" id="inviteCodeInput" placeholder="邀请码（必填）" style="margin-bottom:1.5rem;">
+        <button class="btn" id="signupBtn" style="width:100%;">注册</button>
+      </div>
+      <p style="margin-top:1rem; font-size:0.85rem; color:#9a9490; text-align:center;">注册需要有效的邀请码</p>
+    </div>
+  </div>
+</div>
+
+<!-- 主应用面板 -->
+<div id="appPanel" class="hidden">
+  <nav>
+    <div class="logo">句·集</div>
+    <div style="display:flex; gap:1.5rem; align-items:center;">
+      <a href="#" id="navDiscover" style="text-decoration:none; color:#3e3a39;">发现</a>
+      <a href="#" id="navForums" style="text-decoration:none; color:#3e3a39;">论坛</a>
+      <a href="#" id="adminEntry" class="admin-badge hidden">管理后台</a>
+      <span id="userEmailDisplay"></span>
+      <button class="btn-outline btn" id="signOutBtn">登出</button>
+    </div>
+  </nav>
+
+  <div class="container" id="discoverView">
+    <!-- 搜索栏 -->
+    <div style="margin-bottom:2rem;">
+      <div style="display:flex; gap:1rem;">
+        <input type="text" id="searchInput" placeholder="搜索句子、作者... 或让AI帮你找" style="flex:1;">
+        <button class="btn" id="aiSearchBtn">✨ AI 深搜</button>
+      </div>
+      <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:1rem;" id="categoryFilters">
+        <span class="tag active" data-cat="all">全部</span>
+        <span class="tag" data-cat="文学">文学</span>
+        <span class="tag" data-cat="电影">电影</span>
+        <span class="tag" data-cat="音乐">音乐</span>
+        <span class="tag" data-cat="网络文学">网络文学</span>
+        <span class="tag" data-region="中国">中国</span>
+        <span class="tag" data-region="日本">日本</span>
+        <span class="tag" data-region="欧美">欧美</span>
+      </div>
+    </div>
+
+    <!-- 发布句子卡片 -->
+    <div class="card">
+      <h3 style="margin-bottom:1rem;">📝 分享一句触动你的话</h3>
+      <textarea id="newContent" placeholder="句子内容" rows="2" style="margin-bottom:1rem;"></textarea>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">
+        <input type="text" id="newAuthor" placeholder="作者（选填）">
+        <input type="text" id="newSource" placeholder="出处（选填）">
+      </div>
+      <div style="display:flex; gap:1rem;">
+        <select id="newCategory" style="border-radius:40px;">
+          <option value="文学">文学</option>
+          <option value="电影">电影</option>
+          <option value="音乐">音乐</option>
+          <option value="网络文学">网络文学</option>
+        </select>
+        <input type="text" id="newRegion" placeholder="地区（如 日本）">
+        <button class="btn" id="publishBtn">发布（需审核）</button>
+      </div>
+    </div>
+
+    <!-- 句子流 -->
+    <h3 style="margin:2rem 0 1rem;">✨ 今日拾句</h3>
+    <div class="grid-2col" id="sentencesGrid"></div>
+  </div>
+
+  <!-- 论坛视图（简化版） -->
+  <div class="container hidden" id="forumsView">
+    <h2>📌 文青聚落</h2>
+    <button class="btn" id="createForumBtn" style="margin:1rem 0;">+ 创建新小组</button>
+    <div class="grid-2col" id="forumsGrid"></div>
+  </div>
+
+  <!-- 管理员面板 -->
+  <div class="container hidden" id="adminView">
+    <h2>🛡️ 管理员控制台</h2>
+    <div style="display:flex; gap:1rem; margin:2rem 0;">
+      <button class="btn" id="adminTabInvite">邀请码管理</button>
+      <button class="btn-outline btn" id="adminTabReview">内容审核</button>
+    </div>
+    <div id="adminInvitePanel">
+      <button class="btn" id="genInviteBtn">生成新邀请码</button>
+      <div id="inviteCodeList" style="margin-top:1.5rem;"></div>
+    </div>
+    <div id="adminReviewPanel" class="hidden">
+      <div id="pendingSentencesList"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ==================== 配置区（请替换为你的钥匙）====================
+  const SUPABASE_URL = 'https://mspkbdzfbdeygfhnasky.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_iOH2Efc99WKQSzZt05BicA_8RRLDHgQ';
+  // =================================================================
+
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // 全局状态
+  let currentUser = null;
+  let isAdmin = false;
+  let currentCategory = 'all';
+  let currentRegion = null;
+
+  // DOM 元素
+  const authPanel = document.getElementById('authPanel');
+  const appPanel = document.getElementById('appPanel');
+  const discoverView = document.getElementById('discoverView');
+  const forumsView = document.getElementById('forumsView');
+  const adminView = document.getElementById('adminView');
+  const adminEntry = document.getElementById('adminEntry');
+
+  // 初始化
+  async function init() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      currentUser = session.user;
+      await checkAdminStatus();
+      showApp();
+    }
+    setupEventListeners();
+  }
+  init();
+
+  async function checkAdminStatus() {
+    const { data } = await supabase.auth.getUser();
+    if (data.user) {
+      isAdmin = data.user.user_metadata?.is_admin === 'true';
+      if (isAdmin) adminEntry.classList.remove('hidden');
+    }
+  }
+
+  function showApp() {
+    authPanel.classList.add('hidden');
+    appPanel.classList.remove('hidden');
+    document.getElementById('userEmailDisplay').textContent = currentUser.email;
+    loadSentences();
+    loadForums();
+  }
+
+  function showAuth() {
+    authPanel.classList.remove('hidden');
+    appPanel.classList.add('hidden');
+  }
+
+  // 事件监听
+  function setupEventListeners() {
+    document.getElementById('showSignupBtn').addEventListener('click', () => {
+      document.getElementById('loginForm').classList.add('hidden');
+      document.getElementById('signupForm').classList.remove('hidden');
+    });
+    document.getElementById('showLoginBtn').addEventListener('click', () => {
+      document.getElementById('signupForm').classList.add('hidden');
+      document.getElementById('loginForm').classList.remove('hidden');
+    });
+    document.getElementById('loginBtn').addEventListener('click', login);
+    document.getElementById('signupBtn').addEventListener('click', signup);
+    document.getElementById('signOutBtn').addEventListener('click', async () => {
+      await supabase.auth.signOut();
+      location.reload();
+    });
+    document.getElementById('publishBtn').addEventListener('click', publishSentence);
+    document.getElementById('aiSearchBtn').addEventListener('click', () => alert('AI搜索模拟：可对接DeepSeek等API'));
+    
+    // 分类筛选
+    document.querySelectorAll('.tag').forEach(t => {
+      t.addEventListener('click', function() {
+        document.querySelectorAll('.tag').forEach(tt => tt.classList.remove('active'));
+        this.classList.add('active');
+        const cat = this.dataset.cat;
+        const reg = this.dataset.region;
+        if (cat) { currentCategory = cat; currentRegion = null; }
+        if (reg) { currentRegion = reg; currentCategory = 'all'; }
+        loadSentences();
+      });
+    });
+
+    // 导航
+    document.getElementById('navDiscover').addEventListener('click', () => {
+      discoverView.classList.remove('hidden');
+      forumsView.classList.add('hidden');
+      adminView.classList.add('hidden');
+    });
+    document.getElementById('navForums').addEventListener('click', () => {
+      discoverView.classList.add('hidden');
+      forumsView.classList.remove('hidden');
+      adminView.classList.add('hidden');
+      loadForums();
+    });
+    adminEntry.addEventListener('click', () => {
+      discoverView.classList.add('hidden');
+      forumsView.classList.add('hidden');
+      adminView.classList.remove('hidden');
+      loadInviteCodes();
+      loadPendingSentences();
+    });
+
+    document.getElementById('createForumBtn').addEventListener('click', createForum);
+    document.getElementById('genInviteBtn').addEventListener('click', generateInviteCode);
+    document.getElementById('adminTabInvite').addEventListener('click', () => {
+      document.getElementById('adminInvitePanel').classList.remove('hidden');
+      document.getElementById('adminReviewPanel').classList.add('hidden');
+    });
+    document.getElementById('adminTabReview').addEventListener('click', () => {
+      document.getElementById('adminInvitePanel').classList.add('hidden');
+      document.getElementById('adminReviewPanel').classList.remove('hidden');
+      loadPendingSentences();
+    });
+  }
+
+  async function login() {
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) alert(error.message);
+    else location.reload();
+  }
+
+  async function signup() {
+    const email = document.getElementById('signupEmail').value;
+    const password = document.getElementById('signupPassword').value;
+    const code = document.getElementById('inviteCodeInput').value.trim();
+    if (!code) return alert('邀请码不能为空');
+    
+    // 验证邀请码
+    const { data: validCode, error: codeError } = await supabase
+      .from('invitation_codes')
+      .select('*')
+      .eq('code', code)
+      .is('used_by', null)
+      .gte('expires_at', new Date().toISOString())
+      .single();
+    
+    if (codeError || !validCode) return alert('邀请码无效或已过期');
+    
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) return alert(error.message);
+    
+    // 标记邀请码已使用
+    await supabase.from('invitation_codes').update({ used_by: data.user.id, used_at: new Date() }).eq('code', code);
+    alert('注册成功！请查收验证邮件。');
+    location.reload();
+  }
+
+  async function publishSentence() {
+    const content = document.getElementById('newContent').value.trim();
+    if (!content) return alert('请输入内容');
+    const author = document.getElementById('newAuthor').value.trim();
+    const source = document.getElementById('newSource').value.trim();
+    const category = document.getElementById('newCategory').value;
+    const region = document.getElementById('newRegion').value.trim();
+    
+    const { error } = await supabase.from('sentences').insert([{
+      content, author, source, category, region,
+      user_id: currentUser.id,
+      status: 'pending'
+    }]);
+    if (error) alert(error.message);
+    else {
+      alert('发布成功，等待管理员审核');
+      document.getElementById('newContent').value = '';
+      loadSentences();
+    }
+  }
+
+  async function loadSentences() {
+    let query = supabase.from('sentences').select('*').eq('status', 'approved').order('created_at', { ascending: false });
+    if (currentCategory !== 'all') query = query.eq('category', currentCategory);
+    if (currentRegion) query = query.eq('region', currentRegion);
+    
+    const { data } = await query.limit(50);
+    const grid = document.getElementById('sentencesGrid');
+    if (!data?.length) {
+      grid.innerHTML = '<p>暂无句子</p>';
+      return;
+    }
+    grid.innerHTML = data.map(s => `
+      <div class="card">
+        <div style="font-size:1.3rem; margin-bottom:1rem;">${escapeHtml(s.content)}</div>
+        <div style="display:flex; justify-content:space-between; color:#7a726d;">
+          <span>${s.author ? '—— '+escapeHtml(s.author) : ''} ${s.source ? '《'+escapeHtml(s.source)+'》' : ''}</span>
+          <span>❤️ ${s.likes || 0}</span>
+        </div>
+        <div style="margin-top:0.5rem; font-size:0.8rem;">🏷️ ${s.category} · ${s.region || '未知'}</div>
+      </div>
+    `).join('');
+  }
+
+  async function loadForums() {
+    const { data } = await supabase.from('forums').select('*');
+    const grid = document.getElementById('forumsGrid');
+    grid.innerHTML = data.map(f => `
+      <div class="card">
+        <h3>${f.icon || '📌'} ${escapeHtml(f.name)}</h3>
+        <p>${escapeHtml(f.description || '')}</p>
+        <small>${f.member_count} 成员</small>
+      </div>
+    `).join('');
+  }
+
+  async function createForum() {
+    const name = prompt('版块名称');
+    if (!name) return;
+    const desc = prompt('简介（可选）');
+    await supabase.from('forums').insert([{ name, description: desc, created_by: currentUser.id }]);
+    loadForums();
+  }
+
+  async function generateInviteCode() {
+    const code = 'JULY-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+    const { error } = await supabase.from('invitation_codes').insert([{ code, created_by: currentUser.id }]);
+    if (error) alert(error.message);
+    else loadInviteCodes();
+  }
+
+  async function loadInviteCodes() {
+    const { data } = await supabase.from('invitation_codes').select('*').order('created_at', { ascending: false });
+    const container = document.getElementById('inviteCodeList');
+    container.innerHTML = data.map(c => `
+      <div style="background:white; padding:1rem; border-radius:20px; margin-bottom:0.5rem;">
+        <code style="font-size:1.2rem;">${c.code}</code>
+        <span style="margin-left:1rem;">${c.used_by ? '已使用' : '有效'}</span>
+        <small>过期: ${new Date(c.expires_at).toLocaleDateString()}</small>
+      </div>
+    `).join('');
+  }
+
+  async function loadPendingSentences() {
+    const { data } = await supabase.from('sentences').select('*').eq('status', 'pending');
+    const container = document.getElementById('pendingSentencesList');
+    container.innerHTML = data.map(s => `
+      <div class="card">
+        <p><strong>${escapeHtml(s.content)}</strong></p>
+        <p>${s.author || ''} ${s.source || ''}</p>
+        <button onclick="reviewSentence(${s.id}, 'approved')">通过</button>
+        <button onclick="reviewSentence(${s.id}, 'rejected')">拒绝</button>
+      </div>
+    `).join('');
+  }
+
+  window.reviewSentence = async (id, status) => {
+    await supabase.from('sentences').update({ status }).eq('id', id);
+    loadPendingSentences();
+    loadSentences();
+  };
+
+  function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+</script>
+</body>
+</html>
